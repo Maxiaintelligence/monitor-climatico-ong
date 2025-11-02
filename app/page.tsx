@@ -1,5 +1,5 @@
 // Importamos nuestra lista de localizaciones
-import locations from '../lib/locations.json';
+import locations from '@/lib/locations.json';
 
 // Esta función se ejecutará en el servidor para obtener los datos del clima
 async function getWeatherData(lat: number, lon: number) {
