@@ -1,11 +1,10 @@
-// Importamos nuestra lista de localizaciones
-import locations from '@/lib/locations.json';
+import path from 'path';
+import fs from 'fs/promises';
 
-// Esta función se ejecutará en el servidor para obtener los datos del clima
+// La función para obtener el clima no cambia
 async function getWeatherData(lat: number, lon: number) {
   const response = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`,
-    // Esto asegura que los datos se actualicen periódicamente y no se queden "pegados"
     { next: { revalidate: 600 } }
   );
 
@@ -16,13 +15,20 @@ async function getWeatherData(lat: number, lon: number) {
   return response.json();
 }
 
-// Esta es nuestra página principal
+// Nuestra página principal, ahora con lectura de archivo de servidor
 export default async function HomePage() {
-  // Para este primer sprint, tomaremos la primera ciudad de nuestra lista: Actopan
+  // --- INICIO DEL NUEVO CÓDIGO ---
+  // 1. Construimos la ruta absoluta al archivo JSON en el servidor
+  const filePath = path.join(process.cwd(), 'lib', 'locations.json');
+  // 2. Leemos el contenido del archivo como texto
+  const fileContent = await fs.readFile(filePath, 'utf8');
+  // 3. Convertimos el texto (JSON) a un objeto de JavaScript
+  const locations = JSON.parse(fileContent);
+  // --- FIN DEL NUEVO CÓDIGO ---
+
+  // El resto del código es igual
   const firstLocation = locations[0];
   const weatherData = await getWeatherData(firstLocation.lat, firstLocation.lon);
-
-  // Extraemos la temperatura del resultado de la API
   const currentTemperature = weatherData.current_weather.temperature;
 
   return (
