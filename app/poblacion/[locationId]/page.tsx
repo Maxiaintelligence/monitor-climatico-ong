@@ -1,15 +1,15 @@
-// app/poblacion/[locationId]/page.tsx (VERSIÓN FINAL CON ALIAS DE RUTA CORREGIDOS)
+// app/poblacion/[locationId]/page.tsx (VERSIÓN COMPLETA Y FINAL)
 
 'use client'; 
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-// --- ¡CORRECCIÓN DEFINITIVA USANDO ALIAS DE RUTA CORRECTOS! ---
-import locationsData from '@/lib/locations.json'; 
-import ForecastChart from '@/components/ForecastChart';
+// --- ¡CORRECCIÓN FINAL EN RUTAS RELATIVAS! ---
+import locationsData from '../../lib/locations.json'; 
+import ForecastChart from '../../components/ForecastChart';
 
-// Definimos el tipo para una sola localización, coincidiendo con la estructura del JSON
+// Definimos el tipo para una sola localización
 interface Location {
   name: string;
   state: string;
@@ -19,9 +19,8 @@ interface Location {
   region: string;
 }
 
-// Le decimos a TypeScript que nuestro archivo JSON importado es un array de ese tipo
+// Le damos el tipo a nuestro array de localizaciones
 const locations: Location[] = locationsData;
-
 
 // --- FUNCIÓN AUXILIAR PARA CREAR IDs ---
 const generateLocationId = (loc: { name: string, state: string }) => {
@@ -45,21 +44,30 @@ async function getDetailedForecast(lat: number, lon: number) {
 export default function LocationDetailPage({ params }: { params: { locationId: string } }) {
   const [forecast, setForecast] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-
+  
   const locationData = locations.find(loc => generateLocationId(loc) === params.locationId);
 
   useEffect(() => {
-    (async () => {
+    const loadForecast = async () => {
       if (locationData) {
         setIsLoading(true);
         const data = await getDetailedForecast(locationData.lat, locationData.lon);
         setForecast(data);
         setIsLoading(false);
+      } else {
+        setIsLoading(false);
       }
-    })();
-  }, [locationId, locationData]); // Añadimos locationId a las dependencias por buenas prácticas
+    };
+    
+    loadForecast();
+    
+  }, [params.locationId, locationData]);
 
-  if (!locationData && !isLoading) { // Solo muestra 'no encontrado' si ya terminó de cargar
+  if (isLoading) {
+    return <p style={{textAlign: 'center', fontSize: '1.5rem', color: 'white', paddingTop: '5rem'}}>Cargando pronóstico detallado...</p>;
+  }
+  
+  if (!locationData) {
     return (
       <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#121212', color: 'white', minHeight: '100vh', textAlign: 'center' }}>
         <h1>Población no encontrada</h1>
@@ -75,14 +83,11 @@ export default function LocationDetailPage({ params }: { params: { locationId: s
           &larr; Volver al Monitor Principal
         </Link>
         <h1 style={{ fontSize: '2.5rem', marginTop: '1rem' }}>
-          {/* Mostramos un texto temporal mientras carga el nombre */}
-          Pronóstico para {locationData?.name || 'Cargando...'}, {locationData?.state || ''}
+          Pronóstico para {locationData.name}, {locationData.state}
         </h1>
       </header>
       
-      {isLoading && <p style={{textAlign: 'center', fontSize: '1.5rem'}}>Cargando pronóstico detallado...</p>}
-
-      {!isLoading && forecast && (
+      {forecast ? (
         <div>
           <section style={{ height: '400px', backgroundColor: '#1E1E1E', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
             <ForecastChart hourlyData={forecast.hourly} />
@@ -103,6 +108,8 @@ export default function LocationDetailPage({ params }: { params: { locationId: s
             </div>
           </section>
         </div>
+      ) : (
+        <p>No se pudieron cargar los datos del pronóstico.</p>
       )}
     </main>
   );
