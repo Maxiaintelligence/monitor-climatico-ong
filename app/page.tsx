@@ -1,4 +1,4 @@
-// app/page.tsx (VERSIÓN COMPLETA Y CORREGIDA CON PANEL DE RESUMEN)
+// app/page.tsx (VERSIÓN CON CORRECCIÓN DE TIPADO)
 
 'use client';
 
@@ -24,6 +24,12 @@ interface Alert {
 interface LocationWithWeather extends Location {
   weather?: { temperature: number };
   alert: Alert;
+  forecast?: {
+    temperature_2m_max?: number[];
+    temperature_2m_min?: number[];
+    precipitation_sum?: number[];
+    windgusts_10m_max?: number[];
+  };
 }
 
 // --- LLAMADA A LA API ---
@@ -40,13 +46,31 @@ async function getWeatherData(lat: number, lon: number) {
   }
 }
 
-// --- COLORES PARA LAS TARJETAS DE LA LISTA ---
+// --- COLORES PARA LAS TARJETAS ---
 const ALERT_CARD_COLORS = {
   GREEN: '#1E1E1E',
   YELLOW: '#4a3d0a',
   ORANGE: '#613000',
   RED: '#6d0f0f',
 };
+
+// --- COMPONENTE AUXILIAR PARA MOSTRAR EL DATO DE RIESGO ---
+function AlertReasonDetail({ loc }: { loc: LocationWithWeather }) {
+  if (loc.alert.level === 'GREEN' || !loc.forecast) return null;
+  let detail = null;
+  const reason = loc.alert.reason;
+  if (reason.includes('Helada')) {
+    detail = `Mínima: ${loc.forecast.temperature_2m_min?.[0]}°C`;
+  } else if (reason.includes('Inundación')) {
+    detail = `Lluvia 24h: ${loc.forecast.precipitation_sum?.[0]}mm`;
+  } else if (reason.includes('Calor')) {
+    detail = `Máxima: ${loc.forecast.temperature_2m_max?.[0]}°C`;
+  } else if (reason.includes('Viento')) {
+    detail = `Ráfagas: ${loc.forecast.windgusts_10m_max?.[0]} km/h`;
+  }
+  if (!detail) return null;
+  return (<p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#FFC107', fontWeight: 'bold' }}>{detail}</p>);
+}
 
 export default function HomePage() {
   const [locationsWithData, setLocationsWithData] = useState<LocationWithWeather[]>([]);
@@ -65,7 +89,12 @@ export default function HomePage() {
       const processedData = locations.map((location, index) => {
         const weatherData = weatherResults[index];
         const alert = calculateOverallRisk(location, weatherData); 
-        return { ...location, weather: weatherData?.current_weather, alert: alert || { level: 'GREEN', reason: 'Sin datos' } };
+        return { 
+          ...location, 
+          weather: weatherData?.current_weather, 
+          alert: alert || { level: 'GREEN', reason: 'Sin datos' },
+          forecast: weatherData?.daily
+        };
       });
       setLocationsWithData(processedData);
       setIsLoading(false);
@@ -73,18 +102,18 @@ export default function HomePage() {
     loadData();
   }, []);
 
-  // CALCULAMOS LOS DATOS PARA EL RESUMEN
   const redCount = locationsWithData.filter(l => l.alert.level === 'RED').length;
   const orangeCount = locationsWithData.filter(l => l.alert.level === 'ORANGE').length;
   const yellowCount = locationsWithData.filter(l => l.alert.level === 'YELLOW').length;
-  const criticalLocations = locationsWithData
-    .filter(l => l.alert.level === 'RED' || l.alert.level === 'ORANGE')
-    .slice(0, 5);
-
-  // AGRUPAMOS POR REGIÓN
+  const criticalLocations = locationsWithData.filter(l => l.alert.level === 'RED' || l.alert.level === 'ORANGE').slice(0, 5);
+  
+  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+  // Le damos a TypeScript el tipo exacto que esperamos
   const groupedByRegion = locationsWithData.reduce((acc, location) => {
     const region = location.region;
-    if (!acc[region]) acc[region] = [];
+    if (!acc[region]) {
+      acc[region] = [];
+    }
     acc[region].push(location);
     return acc;
   }, {} as Record<string, LocationWithWeather[]>);
@@ -96,46 +125,27 @@ export default function HomePage() {
         <p style={{ fontSize: '1.2rem', color: '#B3B3B3' }}>Monitor de Riesgos para Caritas Pastoral Social Diocesana</p>
       </header>
 
-      {/* MOSTRAMOS EL NUEVO COMPONENTE DE RESUMEN */}
-      {!isLoading && (
-        <RiskSummary 
-          redCount={redCount}
-          orangeCount={orangeCount}
-          yellowCount={yellowCount}
-          criticalLocations={criticalLocations}
-        />
-      )}
-      
-      <section style={{ marginBottom: '3rem', height: '500px' }}>
-        <Map locations={locationsWithData} />
-      </section>
-
+      {!isLoading && <RiskSummary redCount={redCount} orangeCount={orangeCount} yellowCount={yellowCount} criticalLocations={criticalLocations} />}
+      <section style={{ marginBottom: '3rem', height: '500px' }}><Map locations={locationsWithData} /></section>
       {isLoading && <p style={{textAlign: 'center', fontSize: '1.5rem'}}>Analizando riesgos para 64 poblaciones...</p>}
       
       {!isLoading && (
         <div style={{ display: 'grid', gap: '2rem' }}>
           {Object.entries(groupedByRegion).map(([region, locsInRegion]) => (
             <section key={region}>
-              <h2 style={{ borderBottom: '2px solid #BB86FC', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
-                {region}
-              </h2>
+              <h2 style={{ borderBottom: '2px solid #BB86FC', paddingBottom: '0.5rem', marginBottom: '1rem' }}>{region}</h2>
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                 {locsInRegion.map(loc => (
-                  <li key={loc.name + loc.zip_code} style={{ 
-                    backgroundColor: ALERT_CARD_COLORS[loc.alert.level as keyof typeof ALERT_CARD_COLORS], 
-                    padding: '1rem', 
-                    borderRadius: '8px',
-                    borderLeft: `5px solid ${loc.alert.level === 'GREEN' ? 'transparent' : '#FFC107'}`
-                  }}>
+                  <li key={loc.name + loc.zip_code} style={{ backgroundColor: ALERT_CARD_COLORS[loc.alert.level as keyof typeof ALERT_CARD_COLORS], padding: '1rem', borderRadius: '8px', borderLeft: `5px solid ${loc.alert.level === 'GREEN' ? 'transparent' : '#FFC107'}` }}>
                     <h3 style={{ margin: '0 0 0.5rem 0' }}>{loc.name}, {loc.state}</h3>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0, color: '#03DAC6' }}>
-                      {loc.weather ? `${loc.weather.temperature}°C` : 'Sin datos'}
-                    </p>
-                    {loc.alert.level !== 'GREEN' && (
-                      <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#FFC107', fontWeight: 'bold' }}>
-                        {loc.alert.reason}
-                      </p>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0, color: '#03DAC6' }}>{loc.weather ? `${loc.weather.temperature}°C` : 'Sin datos'}</p>
+                    {loc.forecast && (
+                      <div style={{ fontSize: '0.9rem', color: '#B3B3B3', marginTop: '0.5rem' }}>
+                        <span>Max: {loc.forecast.temperature_2m_max?.[0]}°C</span> / <span>Min: {loc.forecast.temperature_2m_min?.[0]}°C</span>
+                      </div>
                     )}
+                    {loc.alert.level !== 'GREEN' && (<p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', fontWeight: 'bold', color: '#FFF' }}>{loc.alert.reason}</p>)}
+                    <AlertReasonDetail loc={loc} />
                   </li>
                 ))}
               </ul>
