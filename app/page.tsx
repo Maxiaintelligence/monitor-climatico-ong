@@ -162,7 +162,7 @@ export default function HomePage() {
               <h2 style={{ borderBottom: '2px solid #BB86FC', paddingBottom: '0.5rem', marginBottom: '1rem' }}>{region}</h2>
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                 {locsInRegion.map(loc => (
-                  <Link key={loc.id} href={`/poblacion/${loc.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link key={loc.id} href={`/poblacion/prueba`} style={{...}}>
                     <li id={loc.id} style={{ 
                       height: '100%', 
                       cursor: 'pointer',
