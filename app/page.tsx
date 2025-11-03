@@ -1,4 +1,4 @@
-// app/page.tsx (VERSIÓN FINAL COMPLETA CON INTERACTIVIDAD)
+// app/page.tsx (VERSIÓN FINAL COMPLETA CON ENLACES A PÁGINA DE DETALLE)
 
 'use client';
 
@@ -7,6 +7,7 @@ import { calculateOverallRisk } from './lib/riskAnalysis';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import RiskSummary from './components/RiskSummary';
+import Link from 'next/link';
 
 // --- FUNCIÓN AUXILIAR PARA CREAR IDs ÚNICOS Y SEGUROS ---
 const generateLocationId = (loc: { name: string, state: string }) => {
@@ -109,7 +110,6 @@ export default function HomePage() {
     loadData();
   }, []);
 
-  // --- FUNCIÓN QUE MANEJA EL CLIC EN EL MAPA ---
   const handleMarkerClick = (locationId: string) => {
     const element = document.getElementById(locationId);
     if (element) {
@@ -158,22 +158,26 @@ export default function HomePage() {
               <h2 style={{ borderBottom: '2px solid #BB86FC', paddingBottom: '0.5rem', marginBottom: '1rem' }}>{region}</h2>
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                 {locsInRegion.map(loc => (
-                  <li id={loc.id} key={loc.id} style={{ 
-                    backgroundColor: ALERT_CARD_COLORS[loc.alert.level as keyof typeof ALERT_CARD_COLORS], 
-                    padding: '1rem', 
-                    borderRadius: '8px',
-                    borderLeft: `5px solid ${loc.alert.level === 'GREEN' ? 'transparent' : '#FFC107'}`
-                  }}>
-                    <h3 style={{ margin: '0 0 0.5rem 0' }}>{loc.name}, {loc.state}</h3>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0, color: '#03DAC6' }}>{loc.weather ? `${loc.weather.temperature}°C` : 'Sin datos'}</p>
-                    {loc.forecast && (
-                      <div style={{ fontSize: '0.9rem', color: '#B3B3B3', marginTop: '0.5rem' }}>
-                        <span>Max: {loc.forecast.temperature_2m_max?.[0]}°C</span> / <span>Min: {loc.forecast.temperature_2m_min?.[0]}°C</span>
-                      </div>
-                    )}
-                    {loc.alert.level !== 'GREEN' && (<p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', fontWeight: 'bold', color: '#FFF' }}>{loc.alert.reason}</p>)}
-                    <AlertReasonDetail loc={loc} />
-                  </li>
+                  <Link key={loc.id} href={`/poblacion/${loc.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <li id={loc.id} style={{ 
+                      height: '100%', 
+                      cursor: 'pointer',
+                      backgroundColor: ALERT_CARD_COLORS[loc.alert.level as keyof typeof ALERT_CARD_COLORS], 
+                      padding: '1rem', 
+                      borderRadius: '8px',
+                      borderLeft: `5px solid ${loc.alert.level === 'GREEN' ? 'transparent' : '#FFC107'}`
+                    }}>
+                      <h3 style={{ margin: '0 0 0.5rem 0' }}>{loc.name}, {loc.state}</h3>
+                      <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0, color: '#03DAC6' }}>{loc.weather ? `${loc.weather.temperature}°C` : 'Sin datos'}</p>
+                      {loc.forecast && (
+                        <div style={{ fontSize: '0.9rem', color: '#B3B3B3', marginTop: '0.5rem' }}>
+                          <span>Max: {loc.forecast.temperature_2m_max?.[0]}°C</span> / <span>Min: {loc.forecast.temperature_2m_min?.[0]}°C</span>
+                        </div>
+                      )}
+                      {loc.alert.level !== 'GREEN' && (<p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', fontWeight: 'bold', color: '#FFF' }}>{loc.alert.reason}</p>)}
+                      <AlertReasonDetail loc={loc} />
+                    </li>
+                  </Link>
                 ))}
               </ul>
             </section>
