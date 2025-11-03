@@ -1,5 +1,5 @@
 // Esta es la forma correcta ahora que tsconfig.json está configurado
-import locations from '@/lib/locations.json';
+import locations from '../lib/locations.json';
 
 // La función para obtener el clima no cambia
 async function getWeatherData(lat: number, lon: number) {
