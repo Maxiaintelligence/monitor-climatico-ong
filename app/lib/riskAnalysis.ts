@@ -1,13 +1,12 @@
-// app/lib/riskAnalysis.ts (VERSIÓN FINAL CON TODOS LOS UMBRALES)
+// app/lib/riskAnalysis.ts (VERSIÓN FINAL CON LÓGICA DE ESCALADO COMPLETA)
 
-// --- INTERFACES DE DATOS ---
+// --- INTERFACES DE DATOS (con propiedades opcionales '?') ---
 interface Location {
   region: string;
 }
 
 interface WeatherData {
   hourly?: {
-    precipitation?: number[];
     relativehumidity_2m?: number[];
   };
   daily?: {
@@ -49,7 +48,7 @@ const FIRE_THRESHOLDS = {
     'REGION 6: VALLES POBLANOS': { temp: 32, humidity: 20, wind: 25 },
 };
 
-// --- FUNCIONES DE ANÁLISIS INDIVIDUALES ROBUSTAS ---
+// --- FUNCIONES DE ANÁLISIS INDIVIDUALES ROBUSTAS Y ESCALONADAS ---
 
 function calculateFloodRisk(location: Location, weather: WeatherData) {
   const totalPrecipitation24h = weather.daily?.precipitation_sum?.[0];
@@ -76,7 +75,8 @@ function calculateHeatwaveRisk(location: Location, weather: WeatherData) {
   if (maxTemp === undefined) return { level: 'GREEN', reason: '' };
   const threshold = HEATWAVE_THRESHOLDS[location.region as keyof typeof HEATWAVE_THRESHOLDS];
   if (!threshold) return { level: 'GREEN', reason: '' };
-  if (maxTemp >= threshold) return { level: 'ORANGE', reason: 'Riesgo por Ola de Calor' };
+  if (maxTemp >= threshold * 0.95) return { level: 'ORANGE', reason: 'Riesgo por Ola de Calor' }; // 95% del umbral para Naranja
+  if (maxTemp >= threshold * 0.85) return { level: 'YELLOW', reason: 'Precaución por Calor' }; // 85% para Amarillo
   return { level: 'GREEN', reason: '' };
 }
 
@@ -86,6 +86,7 @@ function calculateWindRisk(location: Location, weather: WeatherData) {
     const thresholds = WIND_THRESHOLDS[location.region as keyof typeof WIND_THRESHOLDS];
     if (!thresholds) return { level: 'GREEN', reason: '' };
     if (maxGust >= thresholds.gusts) return { level: 'ORANGE', reason: 'Riesgo por Vientos Fuertes' };
+    if (maxGust >= thresholds.gusts * 0.85) return { level: 'YELLOW', reason: 'Precaución por Viento' };
     return { level: 'GREEN', reason: '' };
 }
 
@@ -96,8 +97,18 @@ function calculateFireRisk(location: Location, weather: WeatherData) {
     const minHumidity = weather.hourly?.relativehumidity_2m ? Math.min(...weather.hourly.relativehumidity_2m) : undefined;
     const maxGust = weather.daily?.windgusts_10m_max?.[0];
     if (maxTemp === undefined || minHumidity === undefined || maxGust === undefined) return { level: 'GREEN', reason: '' };
-    if (maxTemp > thresholds.temp && minHumidity < thresholds.humidity && maxGust > thresholds.wind) return { level: 'ORANGE', reason: 'Riesgo de Incendio Forestal' };
+    if (maxTemp > thresholds.temp && minHumidity < thresholds.humidity && maxGust > thresholds.wind) return { level: 'ORANGE', reason: 'Riesgo de Incendio' };
+    if (maxTemp > thresholds.temp * 0.9 && minHumidity < thresholds.humidity * 1.1 && maxGust > thresholds.wind * 0.9) return { level: 'YELLOW', reason: 'Condiciones Favorables para Incendio' };
     return { level: 'GREEN', reason: '' };
+}
+
+function calculateUnusualColdRisk(weather: WeatherData) {
+  if (!weather.daily?.temperature_2m_min || weather.daily.temperature_2m_min.length < 3) return { level: 'GREEN', reason: '' };
+  const weeklyMinTemps = weather.daily.temperature_2m_min;
+  const todayMinTemp = weeklyMinTemps[0];
+  const weeklyAverageMin = weeklyMinTemps.reduce((sum, temp) => sum + temp, 0) / weeklyMinTemps.length;
+  if (todayMinTemp < weeklyAverageMin - 4) return { level: 'YELLOW', reason: 'Descenso de Temperatura' };
+  return { level: 'GREEN', reason: '' };
 }
 
 // --- FUNCIÓN MAESTRA DE DECISIÓN ---
@@ -106,13 +117,14 @@ const RISK_PRIORITY = { RED: 4, ORANGE: 3, YELLOW: 2, GREEN: 1 };
 export function calculateOverallRisk(location: Location, weatherData: WeatherData | null) {
   if (!weatherData) return { level: 'GREEN', reason: 'Sin datos' };
 
-  const floodRisk = calculateFloodRisk(location, weatherData);
+  const floodRisk = calculateFloodRisk(location, weatherData); // <<-- ¡ESTA ES LA CORRECCIÓN CLAVE!
   const frostRisk = calculateFrostRisk(location, weatherData);
   const heatwaveRisk = calculateHeatwaveRisk(location, weatherData);
   const windRisk = calculateWindRisk(location, weatherData);
   const fireRisk = calculateFireRisk(location, weatherData);
+  const unusualColdRisk = calculateUnusualColdRisk(weatherData);
 
-  const activeRisks = [floodRisk, frostRisk, heatwaveRisk, windRisk, fireRisk].filter(risk => risk.level !== 'GREEN');
+  const activeRisks = [floodRisk, frostRisk, heatwaveRisk, windRisk, fireRisk, unusualColdRisk].filter(risk => risk.level !== 'GREEN');
   if (activeRisks.length === 0) return { level: 'GREEN', reason: '' };
 
   const highestRisk = activeRisks.reduce((max, current) => 
