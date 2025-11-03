@@ -1,20 +1,48 @@
-// app/poblacion/[locationId]/page.tsx
+// app/poblacion/[locationId]/page.tsx (VERSIÓN CON CORRECCIÓN DE ESTILOS JSX)
 
-import locations from '@/app/lib/locations.json'; // Usamos un alias para la ruta
+'use client'; 
+
+import { useEffect, useState } from 'react';
+import locations from '@/app/lib/locations.json';
 import Link from 'next/link';
+import ForecastChart from '@/app/components/ForecastChart';
 
 // --- FUNCIÓN AUXILIAR PARA CREAR IDs ---
-// Debe ser idéntica a la que usamos en la página principal
 const generateLocationId = (loc: { name: string, state: string }) => {
   return `${loc.name.toLowerCase().replace(/\s+/g, '-')}-${loc.state.toLowerCase().replace('.', '')}`;
 };
 
-// Esta es nuestra página de detalle
+// --- FUNCIÓN PARA OBTENER EL PRONÓSTICO DETALLADO ---
+async function getDetailedForecast(lat: number, lon: number) {
+  const hourlyParams = 'temperature_2m,precipitation_probability';
+  const dailyParams = 'temperature_2m_max,temperature_2m_min,weathercode';
+  try {
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=${hourlyParams}&daily=${dailyParams}&forecast_days=7&timezone=auto`);
+    if (!response.ok) return null;
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching detailed forecast:", error);
+    return null;
+  }
+}
+
 export default function LocationDetailPage({ params }: { params: { locationId: string } }) {
-  // 1. Buscamos la información de la población usando el ID de la URL
+  const [forecast, setForecast] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   const locationData = locations.find(loc => generateLocationId(loc) === params.locationId);
 
-  // 2. Si no se encuentra la población, mostramos un mensaje de error
+  useEffect(() => {
+    (async () => {
+      if (locationData) {
+        setIsLoading(true);
+        const data = await getDetailedForecast(locationData.lat, locationData.lon);
+        setForecast(data);
+        setIsLoading(false);
+      }
+    })();
+  }, [locationData]);
+
   if (!locationData) {
     return (
       <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#121212', color: 'white', minHeight: '100vh', textAlign: 'center' }}>
@@ -24,9 +52,10 @@ export default function LocationDetailPage({ params }: { params: { locationId: s
     );
   }
 
-  // 3. Si se encuentra, mostramos su información (por ahora, solo el título)
   return (
     <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#121212', color: 'white', minHeight: '100vh' }}>
+      {/* --- ¡AQUÍ ESTÁ LA CORRECCIÓN! --- */}
+      {/* El objeto 'style' solo debe tener un par de llaves */}
       <header style={{ marginBottom: '2rem' }}>
         <Link href="/" style={{ color: '#BB86FC', textDecoration: 'none' }}>
           &larr; Volver al Monitor Principal
@@ -36,16 +65,30 @@ export default function LocationDetailPage({ params }: { params: { locationId: s
         </h1>
       </header>
       
-      {/* --- AQUÍ IRÁN LAS GRÁFICAS Y TABLAS EN FUTUROS PASOS --- */}
-      <div style={{
-        border: '2px dashed #444',
-        padding: '4rem',
-        textAlign: 'center',
-        borderRadius: '8px',
-        color: '#888'
-      }}>
-        <p>Próximamente: Gráficas de pronóstico por hora y diario.</p>
-      </div>
+      {isLoading && <p style={{textAlign: 'center', fontSize: '1.5rem'}}>Cargando pronóstico detallado...</p>}
+
+      {!isLoading && forecast && (
+        <div>
+          <section style={{ height: '400px', backgroundColor: '#1E1E1E', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
+            <ForecastChart hourlyData={forecast.hourly} />
+          </section>
+
+          <section>
+            <h2 style={{borderBottom: '1px solid #444', paddingBottom: '0.5rem'}}>Pronóstico para 7 Días</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '1rem' }}>
+              {forecast.daily.time.map((date: string, index: number) => (
+                <div key={date} style={{ backgroundColor: '#1E1E1E', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontWeight: 'bold' }}>{new Date(date).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}</p>
+                  <p style={{ margin: '0.5rem 0', fontSize: '1.5rem' }}>{/* Icono del tiempo */}</p>
+                  <p style={{ margin: 0 }}>
+                    <span style={{ color: '#FFF', fontWeight: 'bold' }}>{Math.round(forecast.daily.temperature_2m_max[index])}°</span> / <span style={{ color: '#B3B3B3' }}>{Math.round(forecast.daily.temperature_2m_min[index])}°</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
