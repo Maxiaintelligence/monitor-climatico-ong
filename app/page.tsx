@@ -1,12 +1,15 @@
-// app/page.tsx (VERSIÓN FINAL COMPLETA CON ENLACES A PÁGINA DE DETALLE)
+// app/page.tsx (VERSIÓN FINAL CON ALIAS DE RUTA CORRECTOS)
 
 'use client';
 
-import locations from './lib/locations.json';
-import { calculateOverallRisk } from './lib/riskAnalysis';
+// --- ¡CORRECCIÓN EN LAS IMPORTACIONES USANDO ALIAS! ---
+import locations from '@/lib/locations.json';
+import { calculateOverallRisk } from '@/lib/riskAnalysis';
+import RiskSummary from '@/components/RiskSummary';
+// Map se importa dinámicamente, por lo que no necesita un import estático aquí
+
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import RiskSummary from './components/RiskSummary';
 import Link from 'next/link';
 
 // --- FUNCIÓN AUXILIAR PARA CREAR IDs ÚNICOS Y SEGUROS ---
@@ -83,7 +86,8 @@ export default function HomePage() {
   const [locationsWithData, setLocationsWithData] = useState<LocationWithWeather[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const Map = dynamic(() => import('./components/Map'), { 
+  // La importación dinámica también debe usar el alias de ruta
+  const Map = dynamic(() => import('@/components/Map'), { 
     loading: () => <p style={{textAlign: 'center', fontSize: '1.2rem'}}>Cargando mapa...</p>,
     ssr: false 
   });

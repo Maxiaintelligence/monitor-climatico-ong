@@ -5,9 +5,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-// --- ¡CORRECCIÓN FINAL EN RUTAS RELATIVAS! ---
-import locationsData from '../../lib/locations.json'; 
-import ForecastChart from '../../components/ForecastChart';
+// --- Usamos los alias de ruta correctos y explícitos ---
+import locationsData from '@/lib/locations.json'; 
+import ForecastChart from '@/components/ForecastChart';
 
 // Definimos el tipo para una sola localización
 interface Location {
