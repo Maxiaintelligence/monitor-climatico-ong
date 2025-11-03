@@ -1,15 +1,9 @@
-// app/poblacion/[locationId]/page.tsx (VERSIÓN FINAL CON LÓGICA CORREGIDA)
+// app/poblacion/[locationId]/page.tsx (VERSIÓN DE DEPURACIÓN FINAL)
+'use client';
 
-'use client'; 
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-
-// Usamos rutas relativas explícitas y correctas
 import locationsData from '../../lib/locations.json'; 
-import ForecastChart from '../../components/ForecastChart';
 
-// Definimos el tipo para una sola localización
 interface Location {
   name: string;
   state: string;
@@ -21,98 +15,37 @@ interface Location {
 
 const locations: Location[] = locationsData;
 
-// La función para generar IDs no cambia
 const generateLocationId = (loc: { name: string, state: string }) => {
   return `${loc.name.toLowerCase().replace(/\s+/g, '-')}-${loc.state.toLowerCase().replace('.', '')}`;
 };
 
-// La función para obtener el pronóstico no cambia
-async function getDetailedForecast(lat: number, lon: number) {
-  const hourlyParams = 'temperature_2m,precipitation_probability';
-  const dailyParams = 'temperature_2m_max,temperature_2m_min,weathercode';
-  try {
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=${hourlyParams}&daily=${dailyParams}&forecast_days=7&timezone=auto`);
-    if (!response.ok) return null;
-    return response.json();
-  } catch (error) {
-    console.error("Error fetching detailed forecast:", error);
-    return null;
-  }
-}
-
 export default function LocationDetailPage({ params }: { params: { locationId: string } }) {
-  const [forecast, setForecast] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [locationData, setLocationData] = useState<Location | undefined>(undefined);
 
-  useEffect(() => {
-    // --- LÓGICA REESTRUCTURADA Y CORREGIDA ---
-    // 1. Buscamos la población basándonos en el 'locationId' de los parámetros
-    const foundLocation = locations.find(loc => generateLocationId(loc) === params.locationId);
-    setLocationData(foundLocation);
-
-    // 2. Si encontramos la población, cargamos su pronóstico
-    const loadForecast = async () => {
-      if (foundLocation) {
-        const data = await getDetailedForecast(foundLocation.lat, foundLocation.lon);
-        setForecast(data);
-      }
-      setIsLoading(false);
-    };
-    
-    loadForecast();
-    
-  }, [params.locationId]); // El efecto se ejecuta solo cuando el ID de la URL cambia
-
-  
-  if (isLoading) {
-    return <p style={{textAlign: 'center', fontSize: '1.5rem', color: 'white', paddingTop: '5rem'}}>Buscando población y cargando datos...</p>;
-  }
-  
-  if (!locationData) {
-    return (
-      <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#121212', color: 'white', minHeight: '100vh', textAlign: 'center' }}>
-        <h1>Población no encontrada</h1>
-        <Link href="/" style={{ color: '#BB86FC' }}>Volver al monitor principal</Link>
-      </main>
-    );
-  }
+  // Generamos un ID de ejemplo para comparar
+  const exampleGeneratedId = generateLocationId(locations[0]); // ID para Actopan
 
   return (
     <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#121212', color: 'white', minHeight: '100vh' }}>
-      <header style={{ marginBottom: '2rem' }}>
-        <Link href="/" style={{ color: '#BB86FC', textDecoration: 'none' }}>
-          &larr; Volver al Monitor Principal
-        </Link>
-        <h1 style={{ fontSize: '2.5rem', marginTop: '1rem' }}>
-          Pronóstico para {locationData.name}, {locationData.state}
-        </h1>
-      </header>
+      <h1 style={{color: '#dc3545'}}>Página de Depuración de IDs</h1>
+      <p>Vamos a comparar el ID de la URL con un ID de ejemplo generado.</p>
       
-      {forecast ? (
-        <div>
-          <section style={{ height: '400px', backgroundColor: '#1E1E1E', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
-            <ForecastChart hourlyData={forecast.hourly} />
-          </section>
+      <div style={{ backgroundColor: '#1E1E1E', padding: '1rem', borderRadius: '8px', marginTop: '2rem', fontSize: '1.2rem' }}>
+        
+        <h3 style={{marginTop: 0, color: '#B3B3B3'}}>ID Recibido de la URL:</h3>
+        <code style={{ color: '#ffc107', backgroundColor: '#333', padding: '0.5rem', borderRadius: '4px', display: 'block' }}>
+          {params.locationId}
+        </code>
+        <p style={{fontSize: '0.8rem', color: '#888'}}>Longitud: {params.locationId.length} caracteres</p>
 
-          <section>
-            <h2 style={{borderBottom: '1px solid #444', paddingBottom: '0.5rem'}}>Pronóstico para 7 Días</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '1rem' }}>
-              {forecast.daily.time.map((date: string, index: number) => (
-                <div key={date} style={{ backgroundColor: '#1E1E1E', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
-                  <p style={{ margin: 0, fontWeight: 'bold' }}>{new Date(date).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}</p>
-                  <p style={{ margin: '0.5rem 0', fontSize: '1.5rem' }}>{/* Icono del tiempo */}</p>
-                  <p style={{ margin: 0 }}>
-                    <span style={{ color: '#FFF', fontWeight: 'bold' }}>{Math.round(forecast.daily.temperature_2m_max[index])}°</span> / <span style={{ color: '#B3B3B3' }}>{Math.round(forecast.daily.temperature_2m_min[index])}°</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      ) : (
-        <p>No se pudieron cargar los datos del pronóstico.</p>
-      )}
+        <h3 style={{marginTop: '2rem', color: '#B3B3B3'}}>ID de Ejemplo Generado (para Actopan):</h3>
+        <code style={{ color: '#03DAC6', backgroundColor: '#333', padding: '0.5rem', borderRadius: '4px', display: 'block' }}>
+          {exampleGeneratedId}
+        </code>
+        <p style={{fontSize: '0.8rem', color: '#888'}}>Longitud: {exampleGeneratedId.length} caracteres</p>
+
+      </div>
+
+      <Link href="/" style={{ color: '#BB86FC', display: 'block', marginTop: '2rem' }}>Volver al monitor principal</Link>
     </main>
   );
 }
