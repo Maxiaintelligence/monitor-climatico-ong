@@ -1,55 +1,68 @@
-// app/components/Map.tsx (VERSIÓN CORREGIDA PARA ICONOS)
+// app/components/Map.tsx (VERSIÓN CORREGIDA Y VERIFICADA)
 
-'use client'; // ¡Muy importante! Esto le dice a Next.js que es un componente de cliente
+'use client';
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 
-// --- ¡AQUÍ ESTÁ LA CORRECCIÓN CLAVE! ---
-// Borramos la solución anterior y usamos esta nueva y más robusta.
-// Le decimos explícitamente a Leaflet dónde encontrar sus imágenes.
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+// Interfaz para el objeto de alerta que recibirá el mapa
+interface Alert {
+  level: string;
+  reason: string;
+}
 
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-});
-// --- FIN DE LA CORRECCIÓN ---
-
-
-// Definimos el tipo de dato para las localizaciones que el mapa recibirá
-interface Location {
+// Interfaz para la localización combinada con sus datos
+interface LocationWithAlert {
   name: string;
   state: string;
   lat: number;
   lon: number;
+  alert: Alert;
 }
 
 interface MapProps {
-  locations: Location[];
+  locations: LocationWithAlert[];
 }
+
+// Definimos los colores para los marcadores del mapa
+const ALERT_MAP_COLORS = {
+  GREEN: '#28a745', // Verde
+  YELLOW: '#ffc107', // Amarillo
+  ORANGE: '#fd7e14', // Naranja
+  RED: '#dc3545',    // Rojo
+};
 
 export default function Map({ locations }: MapProps) {
   return (
     <MapContainer 
-      center={[20.1213, -98.7344]} // Centrado en Pachuca
+      center={[20.1213, -98.7344]}
       zoom={8} 
-      scrollWheelZoom={false} // Desactivamos el zoom con la rueda del mouse para mejorar la experiencia en móvil
+      scrollWheelZoom={false}
       style={{ height: '100%', width: '100%', borderRadius: '8px' }}
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
       />
       
-      {locations.map((loc, index) => (
-        <Marker key={index} position={[loc.lat, loc.lon]}>
+      {locations.map((loc) => (
+        <CircleMarker
+          // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+          // Usamos una combinación de lat y lon para una clave única, en lugar del zip_code que no existe aquí.
+          key={`${loc.lat}-${loc.lon}`}
+          center={[loc.lat, loc.lon]}
+          pathOptions={{ 
+            color: ALERT_MAP_COLORS[loc.alert.level as keyof typeof ALERT_MAP_COLORS] || '#888',
+            fillColor: ALERT_MAP_COLORS[loc.alert.level as keyof typeof ALERT_MAP_COLORS] || '#888',
+            fillOpacity: 0.8
+          }}
+          radius={6}
+        >
           <Popup>
-            {loc.name}, {loc.state}
+            <b>{loc.name}, {loc.state}</b><br />
+            {loc.alert.level !== 'GREEN' ? `Alerta: ${loc.alert.reason}` : 'Sin alertas'}
           </Popup>
-        </Marker>
+        </CircleMarker>
       ))}
     </MapContainer>
   );
