@@ -1,13 +1,13 @@
-// app/page.tsx (VERSIÓN CON MAPA INTEGRADO)
+// app/page.tsx (VERSIÓN FINAL CON MAPA Y ALERTAS ACTIVAS)
 
-'use client'; // <-- ¡Importante! Hacemos que la página principal sea un componente de cliente
+'use client';
 
 import locations from './lib/locations.json';
 import { calculateOverallRisk } from './lib/riskAnalysis';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
-// Definimos la interfaz para el tipo de dato de una localización
+// --- DEFINICIÓN DE TIPOS ---
 interface Location {
   name: string;
   state: string;
@@ -16,41 +16,31 @@ interface Location {
   lon: number;
   region: string;
 }
-
-// Interfaz para la respuesta completa de la API
-interface WeatherData {
-  current_weather?: { temperature: number };
-  // ... aquí irían las otras propiedades daily, hourly, etc.
-}
-
-// Interfaz para el objeto de alerta
 interface Alert {
   level: string;
   reason: string;
 }
-
-// Interfaz para la localización combinada con sus datos
 interface LocationWithWeather extends Location {
-  weather: WeatherData['current_weather'];
+  weather?: { temperature: number };
   alert: Alert;
 }
 
-// La llamada a la API no cambia
+// --- LLAMADA A LA API (SIN CAMBIOS) ---
 async function getWeatherData(lat: number, lon: number) {
-  const dailyParams = ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum', 'windgusts_10m_max'].join(',');
-  const hourlyParams = 'relativehumidity_2m';
-  try {
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&forecast_days=7&timezone=auto`, { next: { revalidate: 900 } });
-    if (!response.ok) return null;
-    return response.json();
-  } catch (error) {
-    console.error("Error fetching weather data:", error);
-    return null;
-  }
+    const dailyParams = ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum', 'windgusts_10m_max'].join(',');
+    const hourlyParams = 'relativehumidity_2m';
+    try {
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&forecast_days=7&timezone=auto`, { next: { revalidate: 900 } });
+        if (!response.ok) return null;
+        return response.json();
+    } catch (error) {
+        console.error("Error fetching weather data:", error);
+        return null;
+    }
 }
 
-// Mapa de colores para nuestros niveles de alerta
-const ALERT_COLORS = {
+// --- COLORES PARA LAS TARJETAS DE LA LISTA ---
+const ALERT_CARD_COLORS = {
   GREEN: '#1E1E1E',
   YELLOW: '#4a3d0a',
   ORANGE: '#613000',
@@ -58,17 +48,14 @@ const ALERT_COLORS = {
 };
 
 export default function HomePage() {
-  // --- ¡CAMBIO IMPORTANTE! Usamos estado para manejar los datos del lado del cliente ---
-  const [locationsWithWeather, setLocationsWithWeather] = useState<LocationWithWeather[]>([]);
+  const [locationsWithData, setLocationsWithData] = useState<LocationWithWeather[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Usamos 'dynamic' para importar el mapa solo en el navegador
   const Map = dynamic(() => import('./components/Map'), { 
     loading: () => <p style={{textAlign: 'center', fontSize: '1.2rem'}}>Cargando mapa...</p>,
     ssr: false 
   });
 
-  // Efecto para cargar los datos del clima cuando el componente se monta
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
@@ -77,23 +64,22 @@ export default function HomePage() {
 
       const processedData = locations.map((location, index) => {
         const weatherData = weatherResults[index];
-        // Por ahora, la alerta siempre será VERDE para evitar problemas
+        // --- ¡CEREBRO REACTIVADO! ---
         const alert = calculateOverallRisk(location, weatherData); 
         
         return {
           ...location,
           weather: weatherData?.current_weather,
-          alert: alert || { level: 'GREEN', reason: '' },
+          alert: alert || { level: 'GREEN', reason: 'Sin datos' },
         };
       });
-      setLocationsWithWeather(processedData);
+      setLocationsWithData(processedData);
       setIsLoading(false);
     }
     loadData();
   }, []);
 
-  // Agrupamos las localizaciones por región para mostrarlas
-  const groupedByRegion = locationsWithWeather.reduce((acc, location) => {
+  const groupedByRegion = locationsWithData.reduce((acc, location) => {
     const region = location.region;
     if (!acc[region]) acc[region] = [];
     acc[region].push(location);
@@ -106,16 +92,14 @@ export default function HomePage() {
         <h1 style={{ fontSize: '2.5rem', color: '#BB86FC' }}>Pueblo Seguro</h1>
         <p style={{ fontSize: '1.2rem', color: '#B3B3B3' }}>Monitor de Riesgos para Caritas Pastoral Social Diocesana</p>
       </header>
-
-      {/* --- AQUÍ INTEGRAMOS EL MAPA --- */}
+      
       <section style={{ marginBottom: '3rem', height: '500px' }}>
-        <Map locations={locations} />
+        {/* Le pasamos los datos completos (con alertas) al mapa */}
+        <Map locations={locationsWithData} />
       </section>
 
-      {/* Mostramos un mensaje de carga mientras se obtienen los datos */}
-      {isLoading && <p style={{textAlign: 'center', fontSize: '1.5rem'}}>Cargando datos de las poblaciones...</p>}
+      {isLoading && <p style={{textAlign: 'center', fontSize: '1.5rem'}}>Analizando riesgos para 64 poblaciones...</p>}
 
-      {/* La lista de regiones solo se muestra cuando los datos están listos */}
       {!isLoading && (
         <div style={{ display: 'grid', gap: '2rem' }}>
           {Object.entries(groupedByRegion).map(([region, locsInRegion]) => (
@@ -126,7 +110,7 @@ export default function HomePage() {
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                 {locsInRegion.map(loc => (
                   <li key={loc.name + loc.zip_code} style={{ 
-                    backgroundColor: ALERT_COLORS[loc.alert.level as keyof typeof ALERT_COLORS], 
+                    backgroundColor: ALERT_CARD_COLORS[loc.alert.level as keyof typeof ALERT_CARD_COLORS], 
                     padding: '1rem', 
                     borderRadius: '8px',
                     borderLeft: `5px solid ${loc.alert.level === 'GREEN' ? 'transparent' : '#FFC107'}`
