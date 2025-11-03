@@ -1,5 +1,5 @@
-import path from 'path';
-import fs from 'fs/promises';
+// Esta es la forma correcta ahora que tsconfig.json está configurado
+import locations from '@/lib/locations.json';
 
 // La función para obtener el clima no cambia
 async function getWeatherData(lat: number, lon: number) {
@@ -15,18 +15,8 @@ async function getWeatherData(lat: number, lon: number) {
   return response.json();
 }
 
-// Nuestra página principal, ahora con lectura de archivo de servidor
+// Nuestra página principal
 export default async function HomePage() {
-  // --- INICIO DEL NUEVO CÓDIGO ---
-  // 1. Construimos la ruta absoluta al archivo JSON en el servidor
-  const filePath = path.join(process.cwd(), 'lib', 'locations.json');
-  // 2. Leemos el contenido del archivo como texto
-  const fileContent = await fs.readFile(filePath, 'utf8');
-  // 3. Convertimos el texto (JSON) a un objeto de JavaScript
-  const locations = JSON.parse(fileContent);
-  // --- FIN DEL NUEVO CÓDIGO ---
-
-  // El resto del código es igual
   const firstLocation = locations[0];
   const weatherData = await getWeatherData(firstLocation.lat, firstLocation.lon);
   const currentTemperature = weatherData.current_weather.temperature;
