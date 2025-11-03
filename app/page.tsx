@@ -1,4 +1,4 @@
-// app/page.tsx (VERSIÓN FINAL LIMPIA)
+// app/page.tsx (VERSIÓN FINAL CON LLAMADA A LA API PARA 7 DÍAS)
 
 // Importamos tanto las localizaciones como nuestro motor de análisis multi-riesgo
 import locations from './lib/locations.json';
@@ -14,8 +14,8 @@ interface Location {
   region: string;
 }
 
-// --- LLAMADA A LA API COMPLETA Y CORRECTA ---
-// Pedimos TODOS los datos que nuestro motor de análisis necesita
+// --- LLAMADA A LA API ACTUALIZADA ---
+// Pedimos el pronóstico para 7 días para poder calcular la anomalía de temperatura
 async function getWeatherData(lat: number, lon: number) {
   const dailyParams = [
     'temperature_2m_max',
@@ -28,7 +28,7 @@ async function getWeatherData(lat: number, lon: number) {
 
   try {
     const response = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&forecast_days=1&timezone=auto`,
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&forecast_days=7&timezone=auto`, // <-- CAMBIO CRUCIAL A 7 DÍAS
       { next: { revalidate: 900 } } // Revalidar cada 15 minutos
     );
     if (!response.ok) return null;
