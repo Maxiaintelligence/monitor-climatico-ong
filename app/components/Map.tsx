@@ -1,18 +1,23 @@
-// app/components/Map.tsx
+// app/components/Map.tsx (VERSIÓN CORREGIDA PARA ICONOS)
+
 'use client'; // ¡Muy importante! Esto le dice a Next.js que es un componente de cliente
 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Arreglo para un problema común con los iconos en react-leaflet
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-let DefaultIcon = L.icon({
-    iconUrl: icon.src,
-    shadowUrl: iconShadow.src
+// --- ¡AQUÍ ESTÁ LA CORRECCIÓN CLAVE! ---
+// Borramos la solución anterior y usamos esta nueva y más robusta.
+// Le decimos explícitamente a Leaflet dónde encontrar sus imágenes.
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
-L.Marker.prototype.options.icon = DefaultIcon;
+// --- FIN DE LA CORRECCIÓN ---
+
 
 // Definimos el tipo de dato para las localizaciones que el mapa recibirá
 interface Location {
@@ -31,7 +36,8 @@ export default function Map({ locations }: MapProps) {
     <MapContainer 
       center={[20.1213, -98.7344]} // Centrado en Pachuca
       zoom={8} 
-      style={{ height: '500px', width: '100%', borderRadius: '8px' }}
+      scrollWheelZoom={false} // Desactivamos el zoom con la rueda del mouse para mejorar la experiencia en móvil
+      style={{ height: '100%', width: '100%', borderRadius: '8px' }}
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
