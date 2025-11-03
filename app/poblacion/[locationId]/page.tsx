@@ -1,11 +1,27 @@
-// app/poblacion/[locationId]/page.tsx (VERSIÓN CON CORRECCIÓN DE ESTILOS JSX)
+// app/poblacion/[locationId]/page.tsx (VERSIÓN FINAL CON ALIAS DE RUTA CORREGIDOS)
 
 'use client'; 
 
 import { useEffect, useState } from 'react';
-import locations from '@/app/lib/locations.json';
 import Link from 'next/link';
-import ForecastChart from '@/app/components/ForecastChart';
+
+// --- ¡CORRECCIÓN DEFINITIVA USANDO ALIAS DE RUTA CORRECTOS! ---
+import locationsData from '@/lib/locations.json'; 
+import ForecastChart from '@/components/ForecastChart';
+
+// Definimos el tipo para una sola localización, coincidiendo con la estructura del JSON
+interface Location {
+  name: string;
+  state: string;
+  zip_code: string;
+  lat: number;
+  lon: number;
+  region: string;
+}
+
+// Le decimos a TypeScript que nuestro archivo JSON importado es un array de ese tipo
+const locations: Location[] = locationsData;
+
 
 // --- FUNCIÓN AUXILIAR PARA CREAR IDs ---
 const generateLocationId = (loc: { name: string, state: string }) => {
@@ -41,9 +57,9 @@ export default function LocationDetailPage({ params }: { params: { locationId: s
         setIsLoading(false);
       }
     })();
-  }, [locationData]);
+  }, [locationId, locationData]); // Añadimos locationId a las dependencias por buenas prácticas
 
-  if (!locationData) {
+  if (!locationData && !isLoading) { // Solo muestra 'no encontrado' si ya terminó de cargar
     return (
       <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#121212', color: 'white', minHeight: '100vh', textAlign: 'center' }}>
         <h1>Población no encontrada</h1>
@@ -54,14 +70,13 @@ export default function LocationDetailPage({ params }: { params: { locationId: s
 
   return (
     <main style={{ fontFamily: 'sans-serif', padding: '2rem', backgroundColor: '#121212', color: 'white', minHeight: '100vh' }}>
-      {/* --- ¡AQUÍ ESTÁ LA CORRECCIÓN! --- */}
-      {/* El objeto 'style' solo debe tener un par de llaves */}
       <header style={{ marginBottom: '2rem' }}>
         <Link href="/" style={{ color: '#BB86FC', textDecoration: 'none' }}>
           &larr; Volver al Monitor Principal
         </Link>
         <h1 style={{ fontSize: '2.5rem', marginTop: '1rem' }}>
-          Pronóstico para {locationData.name}, {locationData.state}
+          {/* Mostramos un texto temporal mientras carga el nombre */}
+          Pronóstico para {locationData?.name || 'Cargando...'}, {locationData?.state || ''}
         </h1>
       </header>
       
