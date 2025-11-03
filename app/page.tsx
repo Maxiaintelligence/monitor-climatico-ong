@@ -1,10 +1,10 @@
 // app/page.tsx
 
-// Importamos tanto las localizaciones como nuestro nuevo motor de análisis
+// Importamos tanto las localizaciones como nuestro nuevo motor de análisis MULTI-RIESGO
 import locations from './lib/locations.json';
-import { calculateFloodRisk } from './lib/riskAnalysis';
+import { calculateOverallRisk } from './lib/riskAnalysis';
 
-// ... (El resto de las interfaces se quedan igual)
+// ... (Las interfaces se quedan igual)
 interface Location {
   name: string;
   state: string;
@@ -15,11 +15,20 @@ interface Location {
 }
 
 // --- CAMBIO IMPORTANTE AQUÍ ---
-// Actualizamos la función para pedir también el pronóstico de lluvia por hora
+// Pedimos a la API TODOS los datos que nuestro motor necesita
 async function getWeatherData(lat: number, lon: number) {
+  const params = [
+    'temperature_2m_max',
+    'temperature_2m_min',
+    'precipitation_sum',
+    'windgusts_10m_max',
+  ].join(',');
+
+  const hourlyParams = 'relativehumidity_2m';
+
   try {
     const response = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=precipitation&forecast_days=1`,
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=${params}&hourly=${hourlyParams}&forecast_days=1&timezone=auto`,
       { next: { revalidate: 900 } }
     );
     if (!response.ok) return null;
@@ -30,13 +39,7 @@ async function getWeatherData(lat: number, lon: number) {
   }
 }
 
-// Creamos un mapa de colores para nuestros niveles de alerta
-const ALERT_COLORS = {
-  GREEN: '#1E1E1E', // Fondo normal
-  YELLOW: '#4a3d0a', // Amarillo oscuro
-  ORANGE: '#613000', // Naranja oscuro
-  RED: '#6d0f0f',    // Rojo oscuro
-};
+const ALERT_COLORS = { /* Sin cambios */ };
 
 export default async function HomePage() {
   const weatherPromises = locations.map(loc => getWeatherData(loc.lat, loc.lon));
@@ -45,13 +48,13 @@ export default async function HomePage() {
   const locationsWithWeather = locations.map((location, index) => {
     const weatherData = weatherResults[index];
     // --- CAMBIO IMPORTANTE AQUÍ ---
-    // Calculamos el nivel de alerta para cada localización
-    const alertLevel = calculateFloodRisk(location, weatherData);
+    // Llamamos a la nueva función MAESTRA para obtener el riesgo MÁS ALTO
+    const alert = calculateOverallRisk(location, weatherData);
 
     return {
       ...location,
       weather: weatherData?.current_weather,
-      alertLevel: alertLevel, // Guardamos el nivel de alerta
+      alert: alert, // Guardamos el objeto de alerta completo (nivel y razón)
     };
   });
 
@@ -77,13 +80,18 @@ export default async function HomePage() {
             </h2>
             <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
               {locsInRegion.map(loc => (
-                // --- CAMBIO IMPORTANTE AQUÍ ---
-                // El color de fondo de la tarjeta ahora depende del nivel de alerta
-                <li key={loc.name + loc.zip_code} style={{ backgroundColor: ALERT_COLORS[loc.alertLevel as keyof typeof ALERT_COLORS], padding: '1rem', borderRadius: '8px', borderLeft: `5px solid ${ALERT_COLORS[loc.alertLevel as keyof typeof ALERT_COLORS] === '#1E1E1E' ? 'transparent' : ALERT_COLORS[loc.alertLevel as keyof typeof ALERT_COLORS].replace('1E1E1E', 'FFC107')}` }}>
+                <li key={loc.name + loc.zip_code} style={{ backgroundColor: ALERT_COLORS[loc.alert.level as keyof typeof ALERT_COLORS], padding: '1rem', borderRadius: '8px' }}>
                   <h3 style={{ margin: '0 0 0.5rem 0' }}>{loc.name}, {loc.state}</h3>
                   <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0, color: '#03DAC6' }}>
-                    {loc.weather ? `${loc.weather.temperature}°C` : 'Dato no disponible'}
+                    {loc.weather ? `${loc.weather.temperature}°C` : 'Sin datos'}
                   </p>
+                  {/* --- CAMBIO IMPORTANTE AQUÍ --- */}
+                  {/* Mostramos la razón de la alerta si no es VERDE */}
+                  {loc.alert.level !== 'GREEN' && (
+                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#FFC107', fontWeight: 'bold' }}>
+                      {loc.alert.reason}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
