@@ -44,7 +44,7 @@ const ALERT_COLORS = { /* Sin cambios */ };
 export default async function HomePage() {
   const weatherPromises = locations.map(loc => getWeatherData(loc.lat, loc.lon));
   const weatherResults = await Promise.all(weatherPromises);
-
+  console.log("DATOS RECIBIDOS DE LA API:", JSON.stringify(weatherResults[0], null, 2));
   const locationsWithWeather = locations.map((location, index) => {
     const weatherData = weatherResults[index];
     // --- CAMBIO IMPORTANTE AQUÍ ---
