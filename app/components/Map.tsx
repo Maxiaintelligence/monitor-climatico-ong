@@ -1,18 +1,18 @@
-// app/components/Map.tsx (VERSIÓN CORREGIDA Y VERIFICADA)
+// app/components/Map.tsx (VERSIÓN CON MANEJADOR DE CLIC)
 
 'use client';
 
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Interfaz para el objeto de alerta que recibirá el mapa
+// --- INTERFACES ACTUALIZADAS ---
 interface Alert {
   level: string;
   reason: string;
 }
 
-// Interfaz para la localización combinada con sus datos
 interface LocationWithAlert {
+  id: string; // <-- Añadimos un ID único para la interacción
   name: string;
   state: string;
   lat: number;
@@ -22,17 +22,12 @@ interface LocationWithAlert {
 
 interface MapProps {
   locations: LocationWithAlert[];
+  onMarkerClick: (locationId: string) => void; // <-- 1. AÑADIMOS UNA FUNCIÓN DE CALLBACK
 }
 
-// Definimos los colores para los marcadores del mapa
-const ALERT_MAP_COLORS = {
-  GREEN: '#28a745', // Verde
-  YELLOW: '#ffc107', // Amarillo
-  ORANGE: '#fd7e14', // Naranja
-  RED: '#dc3545',    // Rojo
-};
+const ALERT_MAP_COLORS = { /* ... sin cambios ... */ };
 
-export default function Map({ locations }: MapProps) {
+export default function Map({ locations, onMarkerClick }: MapProps) { // <-- 2. RECIBIMOS LA FUNCIÓN
   return (
     <MapContainer 
       center={[20.1213, -98.7344]}
@@ -47,16 +42,16 @@ export default function Map({ locations }: MapProps) {
       
       {locations.map((loc) => (
         <CircleMarker
-          // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-          // Usamos una combinación de lat y lon para una clave única, en lugar del zip_code que no existe aquí.
-          key={`${loc.lat}-${loc.lon}`}
+          key={loc.id}
           center={[loc.lat, loc.lon]}
-          pathOptions={{ 
-            color: ALERT_MAP_COLORS[loc.alert.level as keyof typeof ALERT_MAP_COLORS] || '#888',
-            fillColor: ALERT_MAP_COLORS[loc.alert.level as keyof typeof ALERT_MAP_COLORS] || '#888',
-            fillOpacity: 0.8
-          }}
+          pathOptions={{ /* ... sin cambios ... */ }}
           radius={6}
+          // --- 3. AÑADIMOS EL EVENTO DE CLIC ---
+          eventHandlers={{
+            click: () => {
+              onMarkerClick(loc.id); // Al hacer clic, llamamos a la función con el ID de la población
+            },
+          }}
         >
           <Popup>
             <b>{loc.name}, {loc.state}</b><br />

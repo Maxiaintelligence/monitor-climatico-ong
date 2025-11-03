@@ -1,4 +1,4 @@
-// app/page.tsx (VERSIÓN CON CORRECCIÓN DE TIPADO)
+// app/page.tsx (VERSIÓN FINAL COMPLETA CON INTERACTIVIDAD)
 
 'use client';
 
@@ -7,6 +7,11 @@ import { calculateOverallRisk } from './lib/riskAnalysis';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import RiskSummary from './components/RiskSummary';
+
+// --- FUNCIÓN AUXILIAR PARA CREAR IDs ÚNICOS Y SEGUROS ---
+const generateLocationId = (loc: { name: string, state: string }) => {
+  return `${loc.name.toLowerCase().replace(/\s+/g, '-')}-${loc.state.toLowerCase().replace('.', '')}`;
+};
 
 // --- DEFINICIÓN DE TIPOS ---
 interface Location {
@@ -22,6 +27,7 @@ interface Alert {
   reason: string;
 }
 interface LocationWithWeather extends Location {
+  id: string; // <-- ID ÚNICO
   weather?: { temperature: number };
   alert: Alert;
   forecast?: {
@@ -90,7 +96,8 @@ export default function HomePage() {
         const weatherData = weatherResults[index];
         const alert = calculateOverallRisk(location, weatherData); 
         return { 
-          ...location, 
+          ...location,
+          id: generateLocationId(location),
           weather: weatherData?.current_weather, 
           alert: alert || { level: 'GREEN', reason: 'Sin datos' },
           forecast: weatherData?.daily
@@ -102,18 +109,29 @@ export default function HomePage() {
     loadData();
   }, []);
 
+  // --- FUNCIÓN QUE MANEJA EL CLIC EN EL MAPA ---
+  const handleMarkerClick = (locationId: string) => {
+    const element = document.getElementById(locationId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.style.transition = 'background-color 0.5s, box-shadow 0.5s';
+      element.style.backgroundColor = '#444';
+      element.style.boxShadow = '0 0 15px #FFC107';
+      setTimeout(() => {
+        element.style.backgroundColor = '';
+        element.style.boxShadow = '';
+      }, 2000);
+    }
+  };
+
   const redCount = locationsWithData.filter(l => l.alert.level === 'RED').length;
   const orangeCount = locationsWithData.filter(l => l.alert.level === 'ORANGE').length;
   const yellowCount = locationsWithData.filter(l => l.alert.level === 'YELLOW').length;
   const criticalLocations = locationsWithData.filter(l => l.alert.level === 'RED' || l.alert.level === 'ORANGE').slice(0, 5);
   
-  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-  // Le damos a TypeScript el tipo exacto que esperamos
   const groupedByRegion = locationsWithData.reduce((acc, location) => {
     const region = location.region;
-    if (!acc[region]) {
-      acc[region] = [];
-    }
+    if (!acc[region]) acc[region] = [];
     acc[region].push(location);
     return acc;
   }, {} as Record<string, LocationWithWeather[]>);
@@ -126,7 +144,11 @@ export default function HomePage() {
       </header>
 
       {!isLoading && <RiskSummary redCount={redCount} orangeCount={orangeCount} yellowCount={yellowCount} criticalLocations={criticalLocations} />}
-      <section style={{ marginBottom: '3rem', height: '500px' }}><Map locations={locationsWithData} /></section>
+      
+      <section style={{ marginBottom: '3rem', height: '500px' }}>
+        <Map locations={locationsWithData} onMarkerClick={handleMarkerClick} />
+      </section>
+
       {isLoading && <p style={{textAlign: 'center', fontSize: '1.5rem'}}>Analizando riesgos para 64 poblaciones...</p>}
       
       {!isLoading && (
@@ -136,7 +158,12 @@ export default function HomePage() {
               <h2 style={{ borderBottom: '2px solid #BB86FC', paddingBottom: '0.5rem', marginBottom: '1rem' }}>{region}</h2>
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                 {locsInRegion.map(loc => (
-                  <li key={loc.name + loc.zip_code} style={{ backgroundColor: ALERT_CARD_COLORS[loc.alert.level as keyof typeof ALERT_CARD_COLORS], padding: '1rem', borderRadius: '8px', borderLeft: `5px solid ${loc.alert.level === 'GREEN' ? 'transparent' : '#FFC107'}` }}>
+                  <li id={loc.id} key={loc.id} style={{ 
+                    backgroundColor: ALERT_CARD_COLORS[loc.alert.level as keyof typeof ALERT_CARD_COLORS], 
+                    padding: '1rem', 
+                    borderRadius: '8px',
+                    borderLeft: `5px solid ${loc.alert.level === 'GREEN' ? 'transparent' : '#FFC107'}`
+                  }}>
                     <h3 style={{ margin: '0 0 0.5rem 0' }}>{loc.name}, {loc.state}</h3>
                     <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0, color: '#03DAC6' }}>{loc.weather ? `${loc.weather.temperature}°C` : 'Sin datos'}</p>
                     {loc.forecast && (
