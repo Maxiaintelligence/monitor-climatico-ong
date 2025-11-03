@@ -1,4 +1,4 @@
-// app/page.tsx (VERSIÓN FINAL CON MAPA Y ALERTAS ACTIVAS)
+// app/page.tsx (VERSIÓN COMPLETA Y CORREGIDA CON PANEL DE RESUMEN)
 
 'use client';
 
@@ -6,6 +6,7 @@ import locations from './lib/locations.json';
 import { calculateOverallRisk } from './lib/riskAnalysis';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
+import RiskSummary from './components/RiskSummary';
 
 // --- DEFINICIÓN DE TIPOS ---
 interface Location {
@@ -25,18 +26,18 @@ interface LocationWithWeather extends Location {
   alert: Alert;
 }
 
-// --- LLAMADA A LA API (SIN CAMBIOS) ---
+// --- LLAMADA A LA API ---
 async function getWeatherData(lat: number, lon: number) {
-    const dailyParams = ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum', 'windgusts_10m_max'].join(',');
-    const hourlyParams = 'relativehumidity_2m';
-    try {
-        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&forecast_days=7&timezone=auto`, { next: { revalidate: 900 } });
-        if (!response.ok) return null;
-        return response.json();
-    } catch (error) {
-        console.error("Error fetching weather data:", error);
-        return null;
-    }
+  const dailyParams = ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum', 'windgusts_10m_max'].join(',');
+  const hourlyParams = 'relativehumidity_2m';
+  try {
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=${dailyParams}&hourly=${hourlyParams}&forecast_days=7&timezone=auto`, { next: { revalidate: 900 } });
+    if (!response.ok) return null;
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching weather data:", error);
+    return null;
+  }
 }
 
 // --- COLORES PARA LAS TARJETAS DE LA LISTA ---
@@ -61,17 +62,10 @@ export default function HomePage() {
       setIsLoading(true);
       const weatherPromises = locations.map(loc => getWeatherData(loc.lat, loc.lon));
       const weatherResults = await Promise.all(weatherPromises);
-
       const processedData = locations.map((location, index) => {
         const weatherData = weatherResults[index];
-        // --- ¡CEREBRO REACTIVADO! ---
         const alert = calculateOverallRisk(location, weatherData); 
-        
-        return {
-          ...location,
-          weather: weatherData?.current_weather,
-          alert: alert || { level: 'GREEN', reason: 'Sin datos' },
-        };
+        return { ...location, weather: weatherData?.current_weather, alert: alert || { level: 'GREEN', reason: 'Sin datos' } };
       });
       setLocationsWithData(processedData);
       setIsLoading(false);
@@ -79,6 +73,15 @@ export default function HomePage() {
     loadData();
   }, []);
 
+  // CALCULAMOS LOS DATOS PARA EL RESUMEN
+  const redCount = locationsWithData.filter(l => l.alert.level === 'RED').length;
+  const orangeCount = locationsWithData.filter(l => l.alert.level === 'ORANGE').length;
+  const yellowCount = locationsWithData.filter(l => l.alert.level === 'YELLOW').length;
+  const criticalLocations = locationsWithData
+    .filter(l => l.alert.level === 'RED' || l.alert.level === 'ORANGE')
+    .slice(0, 5);
+
+  // AGRUPAMOS POR REGIÓN
   const groupedByRegion = locationsWithData.reduce((acc, location) => {
     const region = location.region;
     if (!acc[region]) acc[region] = [];
@@ -92,14 +95,23 @@ export default function HomePage() {
         <h1 style={{ fontSize: '2.5rem', color: '#BB86FC' }}>Pueblo Seguro</h1>
         <p style={{ fontSize: '1.2rem', color: '#B3B3B3' }}>Monitor de Riesgos para Caritas Pastoral Social Diocesana</p>
       </header>
+
+      {/* MOSTRAMOS EL NUEVO COMPONENTE DE RESUMEN */}
+      {!isLoading && (
+        <RiskSummary 
+          redCount={redCount}
+          orangeCount={orangeCount}
+          yellowCount={yellowCount}
+          criticalLocations={criticalLocations}
+        />
+      )}
       
       <section style={{ marginBottom: '3rem', height: '500px' }}>
-        {/* Le pasamos los datos completos (con alertas) al mapa */}
         <Map locations={locationsWithData} />
       </section>
 
       {isLoading && <p style={{textAlign: 'center', fontSize: '1.5rem'}}>Analizando riesgos para 64 poblaciones...</p>}
-
+      
       {!isLoading && (
         <div style={{ display: 'grid', gap: '2rem' }}>
           {Object.entries(groupedByRegion).map(([region, locsInRegion]) => (
