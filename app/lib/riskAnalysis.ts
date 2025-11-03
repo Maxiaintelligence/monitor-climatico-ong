@@ -1,4 +1,4 @@
-// app/lib/riskAnalysis.ts (VERSIÓN CON DEVOLUCIONES DE OBJETO CORREGIDAS)
+// app/lib/riskAnalysis.ts (VERSIÓN CON CORRECCIÓN FINAL DE ARGUMENTOS)
 
 // --- INTERFACES DE DATOS (con propiedades opcionales '?') ---
 interface Location {
@@ -78,9 +78,9 @@ function calculateHeatwaveRisk(location: Location, weather: WeatherData): RiskRe
   if (maxTemp === undefined) return { level: 'GREEN', reason: '' };
   const threshold = HEATWAVE_THRESHOLDS[location.region as keyof typeof HEATWAVE_THRESHOLDS];
   if (!threshold) return { level: 'GREEN', reason: '' };
-  if (maxTemp >= threshold) return { level: 'RED', reason: 'Ola de Calor' }; // SUPERANDO el umbral es ROJO
-  if (maxTemp >= threshold * 0.90) return { level: 'ORANGE', reason: 'Calor Intenso' }; // 90% para Naranja
-  if (maxTemp >= threshold * 0.80) return { level: 'YELLOW', reason: 'Precaución por Calor' }; // 80% para Amarillo
+  if (maxTemp >= threshold) return { level: 'RED', reason: 'Ola de Calor' };
+  if (maxTemp >= threshold * 0.90) return { level: 'ORANGE', reason: 'Calor Intenso' };
+  if (maxTemp >= threshold * 0.80) return { level: 'YELLOW', reason: 'Precaución por Calor' };
   return { level: 'GREEN', reason: '' };
 }
 
@@ -121,13 +121,16 @@ const RISK_PRIORITY = { RED: 4, ORANGE: 3, YELLOW: 2, GREEN: 1 };
 export function calculateOverallRisk(location: Location, weatherData: WeatherData | null): RiskResult {
   if (!weatherData) return { level: 'GREEN', reason: 'Sin datos' };
 
+  // --- ¡AQUÍ ESTABA EL ERROR! ---
+  // La función 'calculateUnusualColdRisk' solo necesita 'weatherData'
+  const unusualColdRisk = calculateUnusualColdRisk(weatherData); 
+
   const floodRisk = calculateFloodRisk(location, weatherData);
   const frostRisk = calculateFrostRisk(location, weatherData);
   const heatwaveRisk = calculateHeatwaveRisk(location, weatherData);
   const windRisk = calculateWindRisk(location, weatherData);
   const fireRisk = calculateFireRisk(location, weatherData);
-  const unusualColdRisk = calculateUnusualColdRisk(location, weatherData);
-
+  
   const activeRisks = [floodRisk, frostRisk, heatwaveRisk, windRisk, fireRisk, unusualColdRisk].filter(risk => risk.level !== 'GREEN');
   if (activeRisks.length === 0) return { level: 'GREEN', reason: '' };
 
